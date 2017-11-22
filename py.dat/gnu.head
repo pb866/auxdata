@@ -1,0 +1,27 @@
+# GNUPLOT Script for TUV Least Square Fits
+# Photolysis parameters for MCMv4.0
+
+#set size 0.80, 0.70
+#set origin 0.1, 0.15
+
+set term postscript enhanced color font ',24'
+set grid
+set output 'photMCM.ps'
+set border lt -1 lw 1.5
+set style line 1 pt 5 lc rgb "black" lw 2
+set style line 2 dt 1 lc rgb "red" lw 2
+
+set xrange [0:2]
+set xtics 0.25
+set mxtics 5
+set xtics border out scale 1.5,.75
+set xlabel 'sza / rad'
+set ytics
+set mytics
+set ytics border out scale 1.5,.75
+set grid ytics dt 3 lw 1 lc rgb "gray"
+set tics in
+
+#set key below
+
+
