@@ -18,6 +18,7 @@ to text files.
 """
 module fhandle
 using DataFrames
+using Juno: input
 export get_fnames,
        wrt_params,
        test_dir,
@@ -36,9 +37,8 @@ function get_fnames(scen)
 
   # Test script argument and ask for input file, if missing
   if scen == ""
-    scen = print("Enter file with TUV scenario name")
-    println("(Name of output file without '.txt'): ")
-    scen = readline(STDIN)
+    println("Enter file with TUV scenario name")
+    scen = input("(Name of output file without '.txt'): ")
   else
     scen = ARGS[1]
   end
@@ -48,8 +48,7 @@ function get_fnames(scen)
   try mkdir(iofolder)
   catch
     print("\033[95mFolder '$iofolder' already exists! Overwrite ")
-    print("(\033[4mY\033[0m\033[95mes/\033[4mN\033[0m\033[95mo)?\033[0m ")
-    confirm = readline(STDIN)
+    confirm = input("(\033[4mY\033[0m\033[95mes/\033[4mN\033[0m\033[95mo)?\033[0m ")
     if lowercase(confirm) == "yes" || lowercase(confirm) == "y"
       cd(iofolder); files = readdir(); for file in files  rm(file)  end; cd("..")
     else println("Programme aborted. Exit code '98'."); exit(98)
@@ -118,18 +117,21 @@ function test_dir(ifile::String; default_dir::String="./")
 
   # Add default directory, if folder path in file name is missing
   dir = dirname(ifile)
-  if dir == ""  dir = default_dir; ifile = joinpath(dir,basename(ifile))  end
+  if dir == ""
+    dir = default_dir
+    ifile = normpath(joinpath(dir,basename(ifile)))
+  end
 
   # Test directory path and warn, if non-existant, either create path (opt. 1)
   # redefine output file + path (opt. 2) or exit script (general case)
   if !isdir(dir)
     println("Directory for specified file does not exist!")
     println("Create directory [1] or specify new (folder +) file [2] or quit [<ENTER>]?")
-    decision = readline()
+    decision = input()
     if decision == "1"
       mkpath(dir)
     elseif decision == "2"
-      print("Enter file name: "); ifile = readline()
+      ifile = input("Enter file name: ")
       ifile = test_dir(ifile,default_dir=default_dir)
     else
       exit()
@@ -158,7 +160,8 @@ function test_file(ifile;default_dir::String="./")
   # Test existance of file or ask for user input until file is found
   while !isfile(ifile)
     println("File $ifile does not exist!")
-    print("Enter file: "); ifile = readline()
+    ifile = input("Enter file (or press <ENTER> to quit): ")
+    if ifile==""  exit()  end
   end
 
   return ifile
@@ -203,12 +206,13 @@ function rdinp(ifile::String,rmhead::Int64=0;default_dir::String="./")
   # Add default directory, if folder path in file name is missing
   fname = basename(ifile); dir = dirname(ifile)
   if dir == ""  dir = default_dir  end
-  ifile = joinpath(dir,fname)
+  ifile = normpath(joinpath(dir,fname))
 
   # Check existance of database file
   while !isfile(ifile)
     println("File $ifile does not exist!")
-    print("Enter file: "); ifile = readline()
+    ifile = input("Enter file (or press <ENTER> to quit): ")
+    if ifile==""  exit()  end
   end
 
   # Read lines from database file and delete header
