@@ -64,7 +64,7 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata)
   # Loop over species/reactions and scenarios
   for spc in plotdata  for case in icase
     # Unit conversions
-    if unit!="mlc"  ||  unit!="cm-3"
+    if unit!="mlc"  &&  unit!="cm-3"
       p = 0
       factor = 1./ydata[case][:M]
       if what == "rates"  factor *= 3600.  end
@@ -139,7 +139,7 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt)
   fig, ax = subplots()
 
   # Find y-axis maximum
-  if unit!="mlc"  ||  unit!="cm-3"
+  if unit!="mlc"  &&  unit!="cm-3"
     p = 0
   else
     p=floor(log10(maximum(ylines[end])))
@@ -320,12 +320,14 @@ function sel_ls(;cs::String="line",nc=1,nt=1)
          "#D499ED", "#AC6012", "#FF00FF", "#A50029", "#808000",
          "#A0A0A0", "#FF7F7F", "#3D9EFF", "#99CC99", "#FBC96D",
          "#7F7FFF", "#DDBFA0", "#FFB2FF", "#C68696", "#D8D8B2"]
-  src = ["#9900CC", "#003DF5", "#7547FF", "#33FFCC", "#66FF33", "#009933", "#998000",
-         "#990066", "#330099", "#006699", "#00FFFF", "#00FF80", "#99CC66", "#6699CC",
-         "#9966CC", "#CC66CC", "#B83DB8", "#8A2E8A", "#0033FF", "#000088"]
-  snk = ["#FF0000", "#FF8000", "#FFFF00", "#FF7A7A", "#FF0080", "#FF00FF", "#CC0099",
-         "#CC0033", "#CC3300", "#FF470A", "#FFA347", "#FFCC99", "#FF9999", "#FF99CC",
-         "#FFFF99", "#EEB702", "#AA8C2C", "#6D5A1C", "#B7AD8E", "#E69138"]
+  src = ["#330099", "#9900CC", "#003DF5", "#7547FF", "#339D9E",
+         "#33FFCC", "#66FF33", "#009933", "#998000", "#DBA708",
+         "#99CC66", "#00FF80", "#00FFFF", "#6699CC", "#006699",
+         "#0033FF", "#000088", "#274E13", "#A7B763", "#48BD14"]
+  snk = ["#FF0000", "#FF8000", "#FFFF00", "#FF7A7A", "#FF0080",
+         "#FF00FF", "#CC0099", "#CC0033", "#CC3300", "#FF470A",
+         "#FFA347", "#FFCC99", "#FF9999", "#FF99CC", "#FFFF99",
+         "#EEB702", "#AA8C2C", "#6D5A1C", "#B7AD8E", "#E69138"]
   # Combine colour schemes in a dataframe
   colourschemes = DataFrame(line=lin, source=src, sink=snk)
   # Save selected colour or subset of colours
