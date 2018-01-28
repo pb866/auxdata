@@ -11,6 +11,7 @@ Generate plots from DSMACC model output.
 - plot_flux
 - plot_prodloss
 - sel_ls
+- night_shade
 """
 module make_plots
 
@@ -27,7 +28,8 @@ export lineplot,
        plot_stack,
        plot_flux,
        plot_prodloss,
-       sel_ls
+       sel_ls,
+       night_shade
 
 
 ###################
@@ -46,10 +48,11 @@ current scenario(s), `plotdata` the species/reactions to be plotted.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function lineplot(xdata,ydata,label,what,unit,icase,plotdata)
+function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_frmt)
 
   # Initialise current plot
   fig, ax = subplots()
+
   maxval = [] #maximum value needed for axis formats
   ip = 0 #counter for y data needed to assign line style
   # Loop over different species/rates in all scenarios
@@ -85,20 +88,34 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata)
   end  end
 
   # Format plots
-  # Axes ticks, min/max
-  ax[:axes][:get_xaxis]()[:set_ticks](collect(0:12:xdata[end]))
-  xlim(xmin=xdata[1], xmax=xdata[end])
-  minorticks_on()
-  mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
-  ax[:xaxis][:set_minor_locator](mx)
+  # x axis
+  if t_frmt == "TIME"
+    xlim(xmin=xdata[1], xmax=xdata[end]+1.e-5)
+    ax[:axes][:get_xaxis]()[:set_ticks](collect(0:12:xdata[end]+1.e-5))
+    minorticks_on()
+    mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
+    ax[:xaxis][:set_minor_locator](mx)
+    xlabel("model time / hours")
+  elseif t_frmt == "JTIME"
+    xlim(xmin=xdata[1], xmax=xdata[end])
+    majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
+    minorformatter = matplotlib[:dates][:DateFormatter]("")
+    majorlocator = matplotlib[:dates][:HourLocator](byhour=(0, 12))
+    minorlocator = matplotlib[:dates][:HourLocator](byhour=(3, 6, 9, 15, 18, 21))
+    ax[:xaxis][:set_major_formatter](majorformatter)
+    ax[:xaxis][:set_minor_formatter](minorformatter)
+    ax[:xaxis][:set_major_locator](majorlocator)
+    ax[:xaxis][:set_minor_locator](minorlocator)
+    fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
+    xlabel("time (UTC)")
+  end
+  # y axis
   ymin, ymax = ylim()
   if ymin < 0  ylim(ymin=0)  end
-  # Axes labels
-  xlabel("model time / hours")
   if unit=="mlc"  ||  unit=="cm-3"
     # Default y label
     if what=="specs" yl = "concentration / 10\$^{$(Int(p))}\$ molecules cm\$^{-3}\$"
-    elseif what=="rates"  yl = "rate /cm\$^{3\\cdot n}\$ molecules\$^{-n}\$ s\$^{-1}\$"
+    elseif what=="rates"  yl = "rate /cm\$^{3(n-1)}\$ molecules\$^{-n+1}\$ s\$^{-1}\$"
     end
   else
     # Labels for converted units with volume mixing ratios
@@ -111,6 +128,13 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata)
   legend() #ncol=2
   grid(linestyle=":")
   tight_layout()
+
+  # Night-time shading
+  for n = 1:length(nights)÷2
+    ax[:axvspan](xdata[nights[n,1]], xdata[nights[n,2]],
+      facecolor=pltnight[1], alpha=pltnight[2])
+  end
+
   # Save and return plot data
   close(fig)
   return fig
@@ -133,7 +157,7 @@ the legend and `unit` is used for the y axis label.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt)
+function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t_frmt)
 
   # Initialise current plot
   fig, ax = subplots()
@@ -157,15 +181,31 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt)
 
   ### Format plots ###
   # Axes ticks, min/max
-  ax[:axes][:get_xaxis]()[:set_ticks](collect(0:12:xdata[end]))
-  xlim(xmin=xdata[1], xmax=xdata[end])
-  minorticks_on()
-  mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
-  ax[:xaxis][:set_minor_locator](mx)
+  # x axis
+  if t_frmt == "TIME"
+    ax[:axes][:get_xaxis]()[:set_ticks](collect(0:12:xdata[end]+1.e-5))
+    xlim(xmin=xdata[1], xmax=xdata[end]+1.e-5)
+    minorticks_on()
+    mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
+    ax[:xaxis][:set_minor_locator](mx)
+    xlabel("model time / hours")
+  elseif t_frmt == "JTIME"
+    xlim(xmin=xdata[1], xmax=xdata[end])
+    majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
+    minorformatter = matplotlib[:dates][:DateFormatter]("")
+    majorlocator = matplotlib[:dates][:HourLocator](byhour=(0, 12))
+    minorlocator = matplotlib[:dates][:HourLocator](byhour=(3, 6, 9, 15, 18, 21))
+    ax[:xaxis][:set_major_formatter](majorformatter)
+    ax[:xaxis][:set_minor_formatter](minorformatter)
+    ax[:xaxis][:set_major_locator](majorlocator)
+    ax[:xaxis][:set_minor_locator](minorlocator)
+    fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
+    xlabel("time (UTC)")
+  end
+
+  # y axis
   ymin, ymax = ylim()
   if ymin < 0  ylim(ymin=0)  end
-  # Axes labels
-  xlabel("model time / hours")
   if unit=="mlc"  ||  unit=="cm-3"
     # Default y label
     yl = "concentration / 10\$^{$(Int(p))}\$ molecules cm\$^{-3}\$"
@@ -178,10 +218,16 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt)
   title("Scenario $scenario")
   ax[:grid](linestyle=":")
   tight_layout()
+
+  # Night-time shading
+  for n = 1:length(nights)÷2
+    ax[:axvspan](xdata[nights[n,1]], xdata[nights[n,2]],
+      facecolor=pltnight[1], alpha=pltnight[2])
+  end
+
   # Save and return plot data
   close(fig)
   return fig
-
 end #function plot_stack
 
 
@@ -194,15 +240,15 @@ in the y axis and the current `scenario` in the title.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_flux(spc, scenario, modtime, fluxes, cs)
+function plot_flux(spc, scenario, modtime, fluxes, cs, nights, pltnight, t_frmt)
   # Generate stacked subplots for source and sink fluxes
   fig, ax = subplots()
-  # Define dotted grid lines
-  ax[:grid](linestyle=":")
 
   # Find maximum
-  p=floor(log10(maximum(sum(fluxes[1],1))))
+  println(fluxes[2])
+  p=floor(log10(maximum(abs.(sum(fluxes[1],1)))))
   if p==Inf || p==-Inf  p = 0  end
+  println("p: $p/$(maximum(abs.(sum(fluxes[1],1))))")
   # Redesign data
   fluxes[1] .*= 10^-p
 
@@ -213,18 +259,40 @@ function plot_flux(spc, scenario, modtime, fluxes, cs)
   title("Scenario $scenario")
   ax[:legend](fluxes[2],fontsize=8)
   # Axes ticks, min/max, adjust maximum for rounding errors with +.00001
-  ax[:axes][:get_xaxis]()[:set_ticks](collect(0:12:modtime[end]+.00001))
-  xlim(xmin=modtime[1], xmax=modtime[end]+.00001)
-  minorticks_on()
-  mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
-  ax[:xaxis][:set_minor_locator](mx)
-  # Axes labels
-  xlabel("model time / hours")
+  # x axis
+  if t_frmt == "TIME"
+    ax[:axes][:get_xaxis]()[:set_ticks](collect(0:12:modtime[end]+1.e-5))
+    xlim(xmin=modtime[1], xmax=modtime[end]+1.e-5)
+    minorticks_on()
+    mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
+    ax[:xaxis][:set_minor_locator](mx)
+    xlabel("model time / hours")
+  elseif t_frmt == "JTIME"
+    xlim(xmin=modtime[1], xmax=modtime[end])
+    majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
+    minorformatter = matplotlib[:dates][:DateFormatter]("")
+    majorlocator = matplotlib[:dates][:HourLocator](byhour=(0, 12))
+    minorlocator = matplotlib[:dates][:HourLocator](byhour=(3, 6, 9, 15, 18, 21))
+    ax[:xaxis][:set_major_formatter](majorformatter)
+    ax[:xaxis][:set_minor_formatter](minorformatter)
+    ax[:xaxis][:set_major_locator](majorlocator)
+    ax[:xaxis][:set_minor_locator](minorlocator)
+    fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
+    xlabel("time (UTC)")
+  end
+  # y axis
   ax[:set_ylabel]("$spc fluxes / \$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$")
   # annotate missing fluxes in the plot
   if fluxes[3] != "no fluxes"
     annotate("omitted fluxes:\n$(join(fluxes[3],'\n'))",
       xy=[2,0.95⋅ax[:get_ylim]()[2]], verticalalignment="top",fontsize=8)
+  end
+  # Define dotted grid lines
+  ax[:grid](linestyle=":")
+  # Night-time shading
+  for n = 1:length(nights)÷2
+    ax[:axvspan](modtime[nights[n,1]], modtime[nights[n,2]],
+      facecolor=pltnight[1], alpha=pltnight[2])
   end
   # Final layout settings
   tight_layout()
@@ -246,14 +314,15 @@ in the y axis and the current `scenario` in the title.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_prodloss(spc, scenario, modtime, source, sink)
+function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t_frmt)
   # Generate stacked subplots for source and sink fluxes
   fig, (ax1, ax2) = subplots(2, sharex=true)
   # Define grid in both subplots
   ax1[:grid](linestyle=":"); ax2[:grid](linestyle=":")
 
   # Find maximum
-  p=floor(log10(min(maximum(sum(source[1],1)),maximum(sum(sink[1],1)))))
+  p=floor(log10(min(maximum(sum(source[1],1)),maximum(abs.(sum(sink[1],1))))))
+  println("p: $p/$(maximum(sum(sink[1],1))), $(maximum(abs.(sum(sink[1],1))))")
   # Redesign data
   source[1] .*= 10^-p; sink[1] .*= -10^-p
 
@@ -269,21 +338,37 @@ function plot_prodloss(spc, scenario, modtime, source, sink)
   ax1[:set_title]("Scenario $scenario")
   ax1[:legend](source[2],fontsize=8); ax2[:legend](sink[2],fontsize=8)
   # Axes ticks, min/max,\n adjust maximum for rounding errors with +.00001
-  ax2[:axes][:get_xaxis]()[:set_ticks](collect(0:12:modtime[end]+.00001))
-  xlim(xmin=modtime[1], xmax=modtime[end]+.00001)
+  # x axis
+  if t_frmt == "TIME"
+    ax2[:axes][:get_xaxis]()[:set_ticks](collect(0:12:modtime[end]+1.e-5))
+    xlim(xmin=modtime[1], xmax=modtime[end]+1.e-5)
+    minorticks_on()
+    mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
+    ax2[:xaxis][:set_minor_locator](mx)
+    ax1[:set_ylim](0,ymax); ax2[:set_ylim](ymin,0)
+    xlabel("model time / hours")
+  elseif t_frmt == "JTIME"
+    xlim(xmin=modtime[1], xmax=modtime[end])
+    majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
+    minorformatter = matplotlib[:dates][:DateFormatter]("")
+    majorlocator = matplotlib[:dates][:HourLocator](byhour=(0, 12))
+    minorlocator = matplotlib[:dates][:HourLocator](byhour=(3, 6, 9, 15, 18, 21))
+    ax2[:xaxis][:set_major_formatter](majorformatter)
+    ax2[:xaxis][:set_minor_formatter](minorformatter)
+    ax2[:xaxis][:set_major_locator](majorlocator)
+    ax2[:xaxis][:set_minor_locator](minorlocator)
+    fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
+    xlabel("time (UTC)")
+  end
+  # y axis
   pextr=maximum(sum(source[1][:,2:end],1))
   nextr=abs(minimum(sum(sink[1][:,2:end],1)))
-  pp=10^floor(log10(pextr))
-  pn=10^floor(log10(nextr))
-  ymin = -ceil(nextr/pn)⋅pn
-  ymax = ceil(pextr/pp)⋅pp
-  minorticks_on()
-  mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
-  ax2[:xaxis][:set_minor_locator](mx)
-  ax1[:set_ylim](0,ymax); ax2[:set_ylim](ymin,0)
-  # Axes labels
-  xlabel("model time / hours")
+  extr = max(pextr,nextr)
+  # p=10^floor(log10(extr))
+  ymin = -ceil(extr/p)⋅p
+  ymax = ceil(extr/p)⋅p
   ax2[:set_ylabel]("$spc sink and source fluxes /\n\$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$",ha="left")
+  
   # annotate missing fluxes in the plot
   if source[3] != "no fluxes"
     ax1[:annotate]("omitted sources:\n$(join(source[3],'\n'))",
@@ -293,6 +378,15 @@ function plot_prodloss(spc, scenario, modtime, source, sink)
     ax2[:annotate]("ommitted sinks:\n$(join(sink[3],'\n'))",
       xy=[2,0.95⋅ax2[:get_ylim]()[1]],fontsize=8)
   end
+
+  # Night-time shading
+  for n = 1:length(nights)÷2
+    ax1[:axvspan](modtime[nights[n,1]], modtime[nights[n,2]],
+      facecolor=pltnight[1], alpha=pltnight[2])
+    ax2[:axvspan](modtime[nights[n,1]], modtime[nights[n,2]],
+      facecolor=pltnight[1], alpha=pltnight[2])
+  end
+
   # Final layout settings
   tight_layout()
   subplots_adjust(hspace=0)
@@ -345,5 +439,28 @@ function sel_ls(;cs::String="line",nc=1,nt=1)
   # Return a set of colours/styles depending on the input choice
   return lc, dt[nt]
 end #function sel_ls
+
+
+"""
+    night_shade(jNO2)
+
+Obtain an n×2 matrix with indices of the model times for the start/end of each night
+from an array of `jNO2` values.
+"""
+function night_shade(jNO2)
+  # Initilise arrays with indices for model times at sunset/sunrise
+  sunset = Int64[]; sunrise = Int64[]
+  # Loop over j(NO2) and find sunrises/sunsets by checking, whether j(NO2) changes to 0
+  for i = 2:length(jNO2)-1
+    if jNO2[i] == 0.0 && jNO2[i-1] > 0.0      push!(sunset,i)
+    elseif jNO2[i] == 0.0 && jNO2[i+1] > 0.0  push!(sunrise,i)
+    end
+  end
+  # If model run starts or ends at night add the respective indices for sunset/sunrise
+  if all(jNO2[1:2] .== 0.0)  unshift!(sunset,1)  end
+  if all(jNO2[end-1:end] .== 0.0)  push!(sunrise,length(jNO2))  end
+
+  return return hcat(sunset,sunrise)
+end #function night_shade
 
 end #module make_plots
