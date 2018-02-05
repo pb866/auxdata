@@ -48,7 +48,7 @@ current scenario(s), `plotdata` the species/reactions to be plotted.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_frmt)
+function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_frmt,sfile)
 
   # Initialise current plot
   fig, ax = subplots()
@@ -136,6 +136,7 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_f
   end
 
   # Save and return plot data
+  if sfile != ""  savefig(sfile)  end
   close(fig)
   return fig
 end #function lineplot
@@ -157,7 +158,7 @@ the legend and `unit` is used for the y axis label.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t_frmt)
+function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t_frmt,sfile)
 
   # Initialise current plot
   fig, ax = subplots()
@@ -226,6 +227,7 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t
   end
 
   # Save and return plot data
+  if sfile != ""  savefig(sfile)  end
   close(fig)
   return fig
 end #function plot_stack
@@ -240,15 +242,13 @@ in the y axis and the current `scenario` in the title.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_flux(spc, scenario, modtime, fluxes, cs, nights, pltnight, t_frmt)
+function plot_flux(spc, scenario, modtime, fluxes, cs, nights, pltnight, t_frmt, sfile)
   # Generate stacked subplots for source and sink fluxes
   fig, ax = subplots()
 
   # Find maximum
-  println(fluxes[2])
   p=floor(log10(maximum(abs.(sum(fluxes[1],1)))))
   if p==Inf || p==-Inf  p = 0  end
-  println("p: $p/$(maximum(abs.(sum(fluxes[1],1))))")
   # Redesign data
   fluxes[1] .*= 10^-p
 
@@ -297,6 +297,7 @@ function plot_flux(spc, scenario, modtime, fluxes, cs, nights, pltnight, t_frmt)
   # Final layout settings
   tight_layout()
 
+  if sfile != ""  savefig(sfile)  end
   close(fig)
   # Reset data
   fluxes[1] ./= 10^-p
@@ -314,7 +315,7 @@ in the y axis and the current `scenario` in the title.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t_frmt)
+function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t_frmt, sfile)
   # Generate stacked subplots for source and sink fluxes
   fig, (ax1, ax2) = subplots(2, sharex=true)
   # Define grid in both subplots
@@ -322,7 +323,6 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
 
   # Find maximum
   p=floor(log10(min(maximum(sum(source[1],1)),maximum(abs.(sum(sink[1],1))))))
-  println("p: $p/$(maximum(sum(sink[1],1))), $(maximum(abs.(sum(sink[1],1))))")
   # Redesign data
   source[1] .*= 10^-p; sink[1] .*= -10^-p
 
@@ -368,7 +368,7 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
   ymin = -ceil(extr/p)⋅p
   ymax = ceil(extr/p)⋅p
   ax2[:set_ylabel]("$spc sink and source fluxes /\n\$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$",ha="left")
-  
+
   # annotate missing fluxes in the plot
   if source[3] != "no fluxes"
     ax1[:annotate]("omitted sources:\n$(join(source[3],'\n'))",
@@ -391,6 +391,7 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
   tight_layout()
   subplots_adjust(hspace=0)
 
+  if sfile != ""  savefig(sfile)  end
   close(fig)
   # Reset data
   source[1] ./= 10^-p; sink[1] ./= -10^-p
