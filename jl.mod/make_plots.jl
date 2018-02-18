@@ -21,7 +21,16 @@ module make_plots
 ##################
 
 # Import external modules
-using PyPlot, DataFrames
+try using PyPlot,
+catch
+  Pkg.add("PyPlot")
+  using PyPlot
+end
+try DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
 
 # Export public functions
 export lineplot,
@@ -345,7 +354,6 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
     minorticks_on()
     mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
     ax2[:xaxis][:set_minor_locator](mx)
-    ax1[:set_ylim](0,ymax); ax2[:set_ylim](ymin,0)
     xlabel("model time / hours")
   elseif t_frmt == "JTIME"
     xlim(xmin=modtime[1], xmax=modtime[end])
@@ -367,6 +375,7 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
   # p=10^floor(log10(extr))
   ymin = -ceil(extr/p)⋅p
   ymax = ceil(extr/p)⋅p
+  ax1[:set_ylim](0,ymax); ax2[:set_ylim](ymin,0)
   ax2[:set_ylabel]("$spc sink and source fluxes /\n\$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$",ha="left")
 
   # annotate missing fluxes in the plot

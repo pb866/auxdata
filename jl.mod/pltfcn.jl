@@ -13,8 +13,21 @@ in a pdf in the output folder.
 module pltfcn
 
 #import modules and export functions
-using DataFrames
-using PyCall, PyPlot
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using PyCall
+catch
+  Pkg.add("PyCall")
+  using PyCall
+end
+try using PyPlot
+catch
+  Pkg.add("PyPlot")
+  using PyPlot
+end
 export plot_j
 
 

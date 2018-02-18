@@ -15,7 +15,11 @@ Read in data from TUV (version 5.2 format) output file and save
 - read_between (private)
 """
 module rddata
-using DataFrames
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
 export read_j
 
 

@@ -9,8 +9,16 @@ Fit MCM parameterisations to TUV output:
 """
 module fitfcn
 
-using DataFrames
-using LsqFit
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using LsqFit
+catch
+  Pkg.add("LsqFit")
+  using LsqFit
+end
 export fit_j
 
 

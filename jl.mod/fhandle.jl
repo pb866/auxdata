@@ -17,8 +17,17 @@ to text files.
 - rdinp
 """
 module fhandle
-using DataFrames
-using Juno: input
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using Juno: input
+catch
+  Pkg.add("Juno")
+  using Juno: input
+end
+
 export get_fnames,
        wrt_params,
        test_dir,
