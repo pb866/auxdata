@@ -21,12 +21,12 @@ module make_plots
 ##################
 
 # Import external modules
-try using PyPlot,
+try using PyPlot
 catch
   Pkg.add("PyPlot")
   using PyPlot
 end
-try DataFrames
+try using DataFrames
 catch
   Pkg.add("DataFrames")
   using DataFrames
@@ -373,8 +373,8 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
   nextr=abs(minimum(sum(sink[1][:,2:end],1)))
   extr = max(pextr,nextr)
   # p=10^floor(log10(extr))
-  ymin = -ceil(extr/p)⋅p
-  ymax = ceil(extr/p)⋅p
+  ymin = -ceil(extr)
+  ymax = ceil(extr)
   ax1[:set_ylim](0,ymax); ax2[:set_ylim](ymin,0)
   ax2[:set_ylabel]("$spc sink and source fluxes /\n\$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$",ha="left")
 
