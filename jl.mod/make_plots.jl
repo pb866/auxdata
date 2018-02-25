@@ -8,6 +8,7 @@ Generate plots from DSMACC model output.
 
 # Functions (public)
 - lineplot
+- plot_stack
 - plot_flux
 - plot_prodloss
 - sel_ls
@@ -47,13 +48,20 @@ export lineplot,
 
 
 """
-    lineplot(xdata,ydata,label,what,unit,icase,plotdata)
+    lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_frmt,sfile)
 
-Generate line plot data from `xdata` and `ydata` with specified `label`s
-and in specified `unit`s and return the raw plot data.
+Generate PyPlot data for line plots from the model times specified in `xdata`
+in the time format `t_frmt` and `ydata` with specified `label`s and in specified
+`unit`s and return the raw plot data.
 
 `what` specifies, whether to plot `"specs"` or `"rates"`, `icase` specifies the
 current scenario(s), `plotdata` the species/reactions to be plotted.
+
+Night-time periods with times specified in `nights` are plotted in the format
+(color/transparancy) specified in `pltnight`.
+
+If a file name `sfile` is provided, plots are saved to folder `FIG` as single pdfs
+in addition to the pdf with the compiled plots as specified by the second script argument.
 
 The function returns a PyCall.PyObject with the plot data.
 """
@@ -152,18 +160,25 @@ end #function lineplot
 
 
 """
-    plot_stack(xdata,ylines,ystack,scenario,label,unit,lt)
+    plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t_frmt,sfile)
 
-Plot the concentrations (mainly of lumped sum species) as a stacked area plots
-with boundaries using `xdata` and `ylines` for the boundaries and `ystack` for
-the area in the graphs.
+Plot the concentrations (mainly of lumped sum species) in the specified `unit`
+as a stacked area plots with boundary lines using the model time `xdata` in the
+format `t_frmt` and `ylines` for the boundaries and `ystack` for the area in the
+graphs.
 
 The colour schemes and boundary line types are defined in tuple `lt` with the
 colour scheme as String array as first entry and the line types with specifications
 for `dashes` as second entry.
 
 The `scenario` names are printed in the titel. Furthermore, `label`s are us for
-the legend and `unit` is used for the y axis label.
+the legend.
+
+Night-time periods with times specified in `nights` are plotted in the format
+(color/transparancy) specified in `pltnight`.
+
+If a file name `sfile` is provided, plots are saved to folder `FIG` as single pdfs
+in addition to the pdf with the compiled plots as specified by the second script argument.
 
 The function returns a PyCall.PyObject with the plot data.
 """
@@ -243,24 +258,34 @@ end #function plot_stack
 
 
 """
-    plot_flux(spc, scenario, modtime, fluxes, cs)
+    plot_flux(spc, scenario, modtime, fluxes, unit, cs, nights, pltnight, t_frmt, sfile)
 
-Plot `fluxes` (positive or negative) over model time (`modtime`) using the colour
-scheme `cs` as time-resolved stacked area plot labelling the current species `spc`
-in the y axis and the current `scenario` in the title.
+Plot `fluxes` (positive or negative) for species `spc` in the specified `scenario`
+and the specified `unit` over model time (`modtime`) in the format `t_frmt` using
+the colour scheme `cs` as time-resolved stacked area plot.
+
+Night-time periods with times specified in `nights` are plotted in the format
+(color/transparancy) specified in `pltnight`.
+
+If a file name `sfile` is provided, plots are saved to folder `FIG` as single pdfs
+in addition to the pdf with the compiled plots as specified by the second script argument.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_flux(spc, scenario, modtime, fluxes, cs, nights, pltnight, t_frmt, sfile)
+function plot_flux(spc, scenario, modtime, fluxes, unit,
+                   cs, nights, pltnight, t_frmt, sfile)
   # Generate stacked subplots for source and sink fluxes
   fig, ax = subplots()
 
-  # Find maximum
-  p=floor(log10(maximum(abs.(sum(fluxes[1],1)))))
-  if p==Inf || p==-Inf  p = 0  end
+  # Find maximum order of magnitude
+  if unit!="mlc"  &&  unit!="cm-3"
+    p = 0
+  else
+    p=floor(log10(maximum(abs.(sum(fluxes[1],1)))))
+    if p==Inf || p==-Inf  p = 0  end
+  end
   # Redesign data
   fluxes[1] .*= 10^-p
-
 
   # Fill plots with graphs
   ax[:stackplot](modtime,fluxes[1],colors=cs)
@@ -290,7 +315,13 @@ function plot_flux(spc, scenario, modtime, fluxes, cs, nights, pltnight, t_frmt,
     xlabel("time (UTC)")
   end
   # y axis
-  ax[:set_ylabel]("$spc fluxes / \$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$")
+  if unit=="mlc"  ||  unit=="cm-3"
+    # Default y label
+    ax[:set_ylabel]("$spc fluxes / \$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$")
+  else
+    # Labels for converted units with volume mixing ratios
+    ax[:set_ylabel]("$spc fluxes / $unit h\$^{-1}\$")
+  end
   # annotate missing fluxes in the plot
   if fluxes[3] != "no fluxes"
     annotate("omitted fluxes:\n$(join(fluxes[3],'\n'))",
@@ -316,22 +347,36 @@ end #function plot_flux
 
 
 """
-    plot_prodloss(spc, scenario, modtime, source, sink)
+    plot_prodloss(spc, scenario, modtime, source, sink,
+                  unit, nights, pltnight, t_frmt, sfile)
 
-Plot `source` (positive) and `sink` (negative) data over model time (`modtime`)
-as time-resolved stacked area plot labelling the current species `spc`
-in the y axis and the current `scenario` in the title.
+Plot `source` (positive) and `sink` (negative) data for species `spc` in the
+specified `scenario` and the specified `unit` over model time (`modtime`) in the
+format `t_frmt` as time-resolved stacked area plot.
+
+Night-time periods with times specified in `nights` are plotted in the format
+(color/transparancy) specified in `pltnight`.
+
+If a file name `sfile` is provided, plots are saved to folder `FIG` as single pdfs
+in addition to the pdf with the compiled plots as specified by the second script
+argument.
 
 The function returns a PyCall.PyObject with the plot data.
 """
-function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t_frmt, sfile)
+function plot_prodloss(spc, scenario, modtime, source, sink, unit,
+                       nights, pltnight, t_frmt, sfile)
   # Generate stacked subplots for source and sink fluxes
   fig, (ax1, ax2) = subplots(2, sharex=true)
   # Define grid in both subplots
   ax1[:grid](linestyle=":"); ax2[:grid](linestyle=":")
 
-  # Find maximum
-  p=floor(log10(min(maximum(sum(source[1],1)),maximum(abs.(sum(sink[1],1))))))
+  # Find maximum order of magnitude
+  if unit!="mlc"  &&  unit!="cm-3"
+    p = 0
+  else
+    p=floor(log10(min(maximum(sum(source[1],1)),maximum(abs.(sum(sink[1],1))))))
+    if p==Inf || p==-Inf  p = 0  end
+  end
   # Redesign data
   source[1] .*= 10^-p; sink[1] .*= -10^-p
 
@@ -376,8 +421,13 @@ function plot_prodloss(spc, scenario, modtime, source, sink, nights, pltnight, t
   ymin = -ceil(extr)
   ymax = ceil(extr)
   ax1[:set_ylim](0,ymax); ax2[:set_ylim](ymin,0)
-  ax2[:set_ylabel]("$spc sink and source fluxes /\n\$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$",ha="left")
-
+  if unit=="mlc"  ||  unit=="cm-3"
+    # Default y label
+    ax2[:set_ylabel]("$spc sink and source fluxes /\n\$10^{$(Int(p))}\$ molecules cm\$^{-3}\$ s\$^{-1}\$",ha="left")
+  else
+    # Labels for converted units with volume mixing ratios
+    ax2[:set_ylabel]("$spc sink and source fluxes / $unit h\$^{-1}\$",ha="left")
+  end
   # annotate missing fluxes in the plot
   if source[3] != "no fluxes"
     ax1[:annotate]("omitted sources:\n$(join(source[3],'\n'))",

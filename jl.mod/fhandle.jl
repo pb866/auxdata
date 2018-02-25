@@ -115,7 +115,7 @@ end # function wrt_params
 
 
 """
-    test_dir(ifile::String;default_dir::String="./")
+    test_dir(ifile::String; default_dir::String="./")
 
 Check for existance of the directory specied in `ifile` after the removal of the
 file name. If directory doesn't exist, ask to create directory or specify a new
@@ -153,13 +153,13 @@ end #function test_file
 
 
 """
-    test_file(ifile::String;default_dir::String="./")
+    test_file(ifile::String; default_dir::String="./")
 
 Check for existance of ifile. If file doesn't exist, ask for a file name until
 file is found. If `default_dir` is specified, rdinp will look for `ifile` in this
 directory, if `ifile` does not include a folder path.
 """
-function test_file(ifile;default_dir::String="./")
+function test_file(ifile; default_dir::String="./")
 
   # Add default directory, if folder path in file name is missing
   fname = basename(ifile); dir = dirname(ifile)
@@ -178,13 +178,13 @@ end #function test_file
 
 
 """
-    rdfil(ifile::String,rmhead::Int64=0)
+    rdfil(ifile::String, rmhead::Int64=0)
 
 Read content from ifile return an array with its lines.
 
 If specified, the first `rmhead` lines are omitted.
 """
-function rdfil(ifile::String,rmhead::Int64=0)
+function rdfil(ifile::String, rmhead::Int64=0)
 
   lines =[]
   # Read lines from file
@@ -202,7 +202,7 @@ end #function rdinp
 
 
 """
-    rdinp(ifile::String,rmhead::Int64=0;default_dir::String="./")
+    rdinp(ifile::String, rmhead::Int64=0; default_dir::String="./")
 
 Check for existance of file and return array with its lines.
 
@@ -210,7 +210,7 @@ The first `rmhead` lines are omitted (none line by default).
 If `default_dir` is specified, rdinp will look for `ifile` in this directory,
 if `ifile` does not include a folder path.
 """
-function rdinp(ifile::String,rmhead::Int64=0;default_dir::String="./")
+function rdinp(ifile::String, rmhead::Int64=0; default_dir::String="./")
 
   # Add default directory, if folder path in file name is missing
   fname = basename(ifile); dir = dirname(ifile)
