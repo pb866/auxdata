@@ -61,12 +61,14 @@ file format or the selection of data.
 ### **kwargs
 
 - `ix`: Column index for column in `ifile` holding the x data (default index: `1`;
-  default column name in output DataFrame: `x`)
-- `iy`: Column index/indices of y data columns in `ifile` (default index: `1`;
-  default column name(s) in output DataFrame: `y1` ... `yn`)
+  default column name in output DataFrame: `x`). If `ix` is set to `0`, no x column
+  is assigned and only y columns are used in the DataFrame.
+- `iy`: Column index/indices of y data columns in `ifile`. If `iy` is set to `0`,
+  all columns starting at column 2 are assigned as y columns (default index: `0`;
+  default column name(s) in output DataFrame: `y1` ... `yn`).
   Columns can be specified using an integer for the selection of a single column,
   ranges (`<n(low)>:<n(high)>`), or arrays with special selections (`[n1, n2, ..., nn]`)
-  where column order can be rearranged
+  where column order can be rearranged.
 - `headers`: If headers is set to `true` (default: `false`), you need to specify
   column header names for all columns for the output DataFrame as described above
   using the keyword `jlheaders`. All columns will be read in and saved the same
@@ -95,7 +97,8 @@ function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
       colnames = replace(colnames,r",|;|\|"," ")
       colnames = split(colnames)
       # Make sure, columns aren't rearranged
-      ix = 1; iy = 0
+      if ix > 1  ix = 1  end
+      iy = 0
     end
     # Find and delete comment lines
     del=find(startswith.(lines,"#"))
@@ -103,11 +106,14 @@ function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
   end
 
   # Determine number of y columns for default case
-  if iy == 0
+  if iy == 0  && ix == 0
+    iy = 1:length(split(lines[1]))
+  elseif iy == 0  && ix > 0
     iy = 2:length(split(lines[1]))
   end
   # Initilise x and y data
-  x = Float64[]; y = Matrix{Float64}(0, length(iy))
+  if ix > 0  x = Float64[]  end
+  y = Matrix{Float64}(0, length(iy))
   # Loop over data lines
   for line in lines
     # Split into columns
@@ -119,12 +125,14 @@ function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
       raw = split(line,sep)
     end
     # Save current line to respective data arrays
-    push!(x,float(raw[ix]))
+    if ix > 0  push!(x,float(raw[ix]))  end
     y = vcat(y,transpose(float.(raw[iy]).⋅SF))
   end
 
   # Generate output DataFrame
-  output = DataFrame(x = x)
+  if ix == 0  output = DataFrame()
+  else        output = DataFrame(x = x)
+  end
   for i = 1:length(iy)
     output[Symbol("y$i")] = y[:,i]
   end
@@ -155,7 +163,7 @@ given by `*args` and `**kwargs`.
 
 - `xlab`: String for x axis label (default: `model time / hours`)
 - `ylab`: String for y axis label (default: `concentration / mlc cm\$^{-3}\$ s\$^{-1}\$`)
-
+- `ti`: String with plot title (default: empty `""`)
 
 # **kwargs
 
@@ -176,13 +184,18 @@ given by `*args` and `**kwargs`.
 - `fntsiz`: Value of font size for tick labels and legend, axis labels are increased
   by 2
 - `frw`: Set line width of plot border lines, grid lines, and tick width.
+- `ti_offset`, `ax_offset`, `leg_offset`: Offsets for fontsizes of title, axes
+  labels, and legend, respectively, in comparison to tick number size. Numbers
+  (positive or negative) will be added to fontsize of ticks.
 """
 function lineplot(pdata, xlab::String="model time / hours",
-                  ylab::String="concentration / mlc cm\$^{-3}\$ s\$^{-1}\$";
+                  ylab::String="concentration / mlc cm\$^{-3}\$ s\$^{-1}\$",
+                  ti::AbstractString="";
                   cs="line", lw::Number=1.4, lt=nothing, mticks::String="on",
                   nmxt::Number=0, nmyt::Number=0, xlims=nothing, ylims=nothing,
                   figsiz::Tuple{Number,Number}=(6,4), fntsiz::Number=12,
-                  frw::Number=1, tsc::Tuple{Number,Number}=(4.5,2.5))
+                  frw::Number=1, tsc::Tuple{Number,Number}=(4.5,2.5),
+                  ti_offset::Number=4, ax_offset::Number=2, leg_offset::Number=0)
   # Start plot
   fig, ax = subplots(figsize=figsiz)
   # Add empty label column to input matrix, if missing
@@ -206,9 +219,12 @@ function lineplot(pdata, xlab::String="model time / hours",
   # Set boundaries
   xlim(xlims); ylim(ylims);
 
+  # Set plot title
+  ax[:set_title](ti, fontsize=fntsiz+ti_offset)
   # Generate axes labels and legend
-  xlabel(xlab,fontsize=fntsiz+2); ylabel(ylab,fontsize=fntsiz+2)
-  ax[:legend](fontsize=fntsiz)
+  ax[:set_xlabel](xlab,fontsize=fntsiz+ax_offset)
+  ax[:set_ylabel](ylab,fontsize=fntsiz+ax_offset)
+  ax[:legend](fontsize=fntsiz+leg_offset)
 
   # Format plot
   if mticks == "on"

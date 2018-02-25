@@ -112,7 +112,7 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_f
     minorticks_on()
     mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
     ax[:xaxis][:set_minor_locator](mx)
-    xlabel("model time / hours")
+    ax[:set_xlabel]("model time / hours")
   elseif t_frmt == "JTIME"
     xlim(xmin=xdata[1], xmax=xdata[end])
     majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
@@ -124,7 +124,7 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_f
     ax[:xaxis][:set_major_locator](majorlocator)
     ax[:xaxis][:set_minor_locator](minorlocator)
     fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
-    xlabel("time (UTC)")
+    ax[:set_xlabel]("time (UTC)")
   end
   # y axis
   ymin, ymax = ylim()
@@ -140,8 +140,10 @@ function lineplot(xdata,ydata,label,what,unit,icase,plotdata,nights,pltnight,t_f
     elseif what=="rates"  yl = "rate / $unit\$^{-n+1}\$ h\$^{-1}\$"
     end
   end
-  ylabel(yl)
+  ax[:set_ylabel](yl)
   # Legend, grid, general layout
+  ax[:tick_params]("both", which="both", direction="in",
+    top="on", right="on", left="on", bottom="on")
   legend() #ncol=2
   grid(linestyle=":")
   tight_layout()
@@ -213,7 +215,7 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t
     minorticks_on()
     mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
     ax[:xaxis][:set_minor_locator](mx)
-    xlabel("model time / hours")
+    ax[:set_xlabel]("model time / hours")
   elseif t_frmt == "JTIME"
     xlim(xmin=xdata[1], xmax=xdata[end])
     majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
@@ -225,7 +227,7 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t
     ax[:xaxis][:set_major_locator](majorlocator)
     ax[:xaxis][:set_minor_locator](minorlocator)
     fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
-    xlabel("time (UTC)")
+    ax[:set_xlabel]("time (UTC)")
   end
 
   # y axis
@@ -238,8 +240,10 @@ function plot_stack(xdata,ylines,ystack,scenario,label,unit,lt,nights,pltnight,t
     # Labels for converted units with volume mixing ratios
     yl = "volume mixing ratio / $unit"
   end
-  ylabel(yl)
+  ax[:set_ylabel](yl)
   # Legend, grid, general layout
+  ax[:tick_params]("both", which="both", direction="in",
+    top="on", right="on", left="on", bottom="on")
   title("Scenario $scenario")
   ax[:grid](linestyle=":")
   tight_layout()
@@ -300,7 +304,7 @@ function plot_flux(spc, scenario, modtime, fluxes, unit,
     minorticks_on()
     mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
     ax[:xaxis][:set_minor_locator](mx)
-    xlabel("model time / hours")
+    ax[:set_xlabel]("model time / hours")
   elseif t_frmt == "JTIME"
     xlim(xmin=modtime[1], xmax=modtime[end])
     majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
@@ -312,7 +316,7 @@ function plot_flux(spc, scenario, modtime, fluxes, unit,
     ax[:xaxis][:set_major_locator](majorlocator)
     ax[:xaxis][:set_minor_locator](minorlocator)
     fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
-    xlabel("time (UTC)")
+    ax[:set_xlabel]("time (UTC)")
   end
   # y axis
   if unit=="mlc"  ||  unit=="cm-3"
@@ -327,6 +331,9 @@ function plot_flux(spc, scenario, modtime, fluxes, unit,
     annotate("omitted fluxes:\n$(join(fluxes[3],'\n'))",
       xy=[2,0.95⋅ax[:get_ylim]()[2]], verticalalignment="top",fontsize=8)
   end
+  # Set ticks at all sides pointing inwards
+  ax[:tick_params]("both", which="both", direction="in",
+    top="on", right="on", left="on", bottom="on")
   # Define dotted grid lines
   ax[:grid](linestyle=":")
   # Night-time shading
@@ -392,6 +399,10 @@ function plot_prodloss(spc, scenario, modtime, source, sink, unit,
   ax1[:set_title]("Scenario $scenario")
   ax1[:legend](source[2],fontsize=8); ax2[:legend](sink[2],fontsize=8)
   # Axes ticks, min/max,\n adjust maximum for rounding errors with +.00001
+  ax1[:tick_params]("both", which="both", direction="in",
+    top="on", right="on", left="on", bottom="on")
+  ax2[:tick_params]("both", which="both", direction="in",
+    top="on", right="on", left="on", bottom="on")
   # x axis
   if t_frmt == "TIME"
     ax2[:axes][:get_xaxis]()[:set_ticks](collect(0:12:modtime[end]+1.e-5))
@@ -399,7 +410,7 @@ function plot_prodloss(spc, scenario, modtime, source, sink, unit,
     minorticks_on()
     mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
     ax2[:xaxis][:set_minor_locator](mx)
-    xlabel("model time / hours")
+    ax[:set_xlabel]("model time / hours")
   elseif t_frmt == "JTIME"
     xlim(xmin=modtime[1], xmax=modtime[end])
     majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
@@ -411,7 +422,7 @@ function plot_prodloss(spc, scenario, modtime, source, sink, unit,
     ax2[:xaxis][:set_major_locator](majorlocator)
     ax2[:xaxis][:set_minor_locator](minorlocator)
     fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
-    xlabel("time (UTC)")
+    ax[:set_xlabel]("time (UTC)")
   end
   # y axis
   pextr=maximum(sum(source[1][:,2:end],1))
