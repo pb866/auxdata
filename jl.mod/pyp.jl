@@ -46,7 +46,9 @@ export rd_data,
 """
     rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
 
+
 Read data from text file `ifile` in the following format:
+
     # Use '#' as first character for comments or data to be ignored.
     # Optional: specify column header names for DataFrame keywords
     # with keyword `jlheaders` as:
@@ -55,10 +57,10 @@ Read data from text file `ifile` in the following format:
     #  separators in the list above)
     <data separated by whitespace or any charecter/string>
 
-The function uses several keyword arguments (**kwargs) for more freedom in the
+The function uses several keyword arguments (\*\*kwargs) for more freedom in the
 file format or the selection of data.
 
-### **kwargs
+### \*\*kwargs
 
 - `ix`: Column index for column in `ifile` holding the x data (default index: `1`;
   default column name in output DataFrame: `x`). If `ix` is set to `0`, no x column
@@ -102,6 +104,9 @@ function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
     end
     # Find and delete comment lines
     del=find(startswith.(lines,"#"))
+    deleteat!(lines,del)
+    # Find and delete empty lines
+    del=find(lines.=="")
     deleteat!(lines,del)
   end
 
@@ -154,32 +159,46 @@ end #function rd_data
 
 
 """
-    lineplot(pdata, *args; **kwargs)
+    lineplot(pdata, \*args; \*\*kwargs)
 Plot `pdata` from a DataFrame to a pdf using PyPlot with the specifications
 given by `*args` and `**kwargs`.
 
 
-# *args
+# \*args
 
 - `xlab`: String for x axis label (default: `model time / hours`)
 - `ylab`: String for y axis label (default: `concentration / mlc cm\$^{-3}\$ s\$^{-1}\$`)
 - `ti`: String with plot title (default: empty `""`)
 
-# **kwargs
+# \*\*kwargs
 
+- `err`: Choose between options
+  - `0` (default): no errors shown in plot
+  - `1`: Symmetrical error – value in column 4 of input matrix indicates the
+    ± range around the experimental value
+  - `2`: Unsymmetrical error – value in columns 4 and 5 of the input matrix
+    indicate the lower and upper error of the experimental value
+  - `3`: As `2`, but with values in columns 4 and 5 of the input matrix being
+    the calculated values of exp. value ± error
+- `logscale`: set to `"x"`, `"y"` or `"xy"`, to set x axis, y axis or both axes to
+  log scale, respectively
 - `cs`: Set colour scheme from function sel_ls, 3 schemes available:
   `"line"` (default), `"source"`, and `"sink"`
 - `lw`: Set line width of graphs
 - `lt`: Set line style of graphs (different set of solid, dashed, dash-dotted,
   and dotted styles available)
+- `lc`: Select single colors with integers, ranges or arrays with indexes of the
+  colors from the colour scheme `cs`
 - `mticks`: Use string `"on"` to show minor ticks and `"off"` suppress display
   of minor ticks
 - `nmxt`: Set interval value of minor x ticks
 - `nmyt`: Set interval value of minor y ticks
 - `tsc`: Tuple with scaling factors for length of major (first tuple entry) and
   minor (second tuple entry) ticks in relation to their width
-- `xlims`: Tuple with minimum and maximum x values
-- `ylims`: Tuple with minimum and maximum y values
+- `xlims`: Tuple with minimum and maximum x values; if you want to change only
+  one value, use `nothing` for the value you want to keep
+- `ylims`: Tuple with minimum and maximum y values; if you want to change only
+  one value, use `nothing` for the value you want to keep
 - `figsiz`: Tuple with (x, y) dimensions in inch for figure size
 - `fntsiz`: Value of font size for tick labels and legend, axis labels are increased
   by 2
@@ -187,36 +206,82 @@ given by `*args` and `**kwargs`.
 - `ti_offset`, `ax_offset`, `leg_offset`: Offsets for fontsizes of title, axes
   labels, and legend, respectively, in comparison to tick number size. Numbers
   (positive or negative) will be added to fontsize of ticks.
+- `legloc`: position of the legend; choose from the following options:
+  - `"best"` or `0` (default)
+  - `"upper right"` or `1`
+  - `"upper left"` or `2`
+  - `"lower left"` or `3`
+  - `"lower right"` or `4`
+  - `"right"` or `5`
+  - `"center left"` or `6`
+  - `"center right"` or `7`
+  - `"lower center"` or `8`
+  - `"upper center"` or `9`
+  - `"center"` or `10`
+- `legcol` (integer): number of legend columns (default: `1`)
 """
 function lineplot(pdata, xlab::String="model time / hours",
                   ylab::String="concentration / mlc cm\$^{-3}\$ s\$^{-1}\$",
-                  ti::AbstractString="";
-                  cs="line", lw::Number=1.4, lt=nothing, mticks::String="on",
-                  nmxt::Number=0, nmyt::Number=0, xlims=nothing, ylims=nothing,
+                  ti::AbstractString="";  err::Int64=0, logscale::String="",
+                  cs::String="line", lw::Number=1.4, lt=nothing, lc=nothing,
+                  mticks::String="on", nmxt::Number=0, nmyt::Number=0,
+                  xlims=nothing, ylims=nothing,
                   figsiz::Tuple{Number,Number}=(6,4), fntsiz::Number=12,
                   frw::Number=1, tsc::Tuple{Number,Number}=(4.5,2.5),
-                  ti_offset::Number=4, ax_offset::Number=2, leg_offset::Number=0)
+                  ti_offset::Number=4, ax_offset::Number=2, leg_offset::Number=0,
+                  legloc="best", legcol::Int64=1)
   # Start plot
   fig, ax = subplots(figsize=figsiz)
   # Add empty label column to input matrix, if missing
   if length(pdata[1,:]) == 2
     lab = String[]
-    for i = 1:length(pdata[1,:])  push!(lab,"")  end
+    for i = 1:length(pdata[:,1])  push!(lab,"")  end
     pdata = hcat(pdata,lab)
   end
 
   # Set line colours and types
-  nc = 1:length(pdata[:,1])
+  if lc == nothing  lc = 1:length(pdata[:,1])  end
   if lt == nothing  lt = 1:length(pdata[:,1])  end
-  lstyle = sel_ls(cs = cs, nc = nc, nt = lt)
+  lstyle = sel_ls(cs = cs, nc = lc, nt = lt)
+
 
   # Plot graphs
-  for i = 1:length(pdata)÷3
+  for i = 1:length(pdata[:,1])
     ax[:plot](pdata[i,1], pdata[i,2], linewidth=lw, dashes=lstyle[2][i],
               color=lstyle[1][i], label=pdata[i,3])
+    if err == 1
+      ax[:fill_between](pdata[i,1], pdata[i,2].-pdata[i,4], pdata[i,2].+pdata[i,4],
+        color=lstyle[1][i], alpha=0.2)
+    elseif err == 2
+      ax[:fill_between](pdata[i,1], pdata[i,2].-pdata[i,4], pdata[i,2].+pdata[i,5],
+        color=lstyle[1][i], alpha=0.2)
+    elseif err == 3
+      ax[:fill_between](pdata[i,1], pdata[i,4], pdata[i,5],
+        color=lstyle[1][i], alpha=0.2)
+    end
   end
 
-  # Set boundaries
+  # Set axes
+  if logscale == "x"
+    xmin = 10^floor(log10(minimum(minimum.(pdata[:,1]))))
+    xmax = 10^ceil(log10(maximum(maximum.(pdata[:,1]))))
+    xlim(xmin,xmax)
+    ax[:set_xscale]("log")
+  elseif logscale == "y"
+    ymin = 10^floor(log10(minimum(minimum.(pdata[:,2]))))
+    ymax = 10^ceil(log10(maximum(maximum.(pdata[:,2]))))
+    ylim(ymin, ymax)
+    ax[:set_yscale]("log")
+  elseif logscale == "xy"
+    xmin = 10^floor(log10(minimum(minimum.(pdata[:,1]))))
+    xmax = 10^ceil(log10(maximum(maximum.(pdata[:,1]))))
+    xlim(xmin,xmax)
+    ymin = 10^floor(log10(minimum(minimum.(pdata[:,2]))))
+    ymax = 10^ceil(log10(maximum(maximum.(pdata[:,2]))))
+    ylim(ymin, ymax)
+    ax[:set_xscale]("log")
+    ax[:set_yscale]("log")
+  end
   xlim(xlims); ylim(ylims);
 
   # Set plot title
@@ -224,7 +289,9 @@ function lineplot(pdata, xlab::String="model time / hours",
   # Generate axes labels and legend
   ax[:set_xlabel](xlab,fontsize=fntsiz+ax_offset)
   ax[:set_ylabel](ylab,fontsize=fntsiz+ax_offset)
-  ax[:legend](fontsize=fntsiz+leg_offset)
+  if any(pdata[:,3].!="")
+    ax[:legend](fontsize=fntsiz+leg_offset, loc=legloc, ncol=legcol)
+  end
 
   # Format plot
   if mticks == "on"
@@ -242,6 +309,7 @@ function lineplot(pdata, xlab::String="model time / hours",
     my = matplotlib[:ticker][:MultipleLocator](nmyt)
     ax[:yaxis][:set_minor_locator](my)
   end
+  # Format ticks and frame
   Mtlen = tsc[1]⋅frw
   mtlen = tsc[2]⋅frw
   ax[:tick_params]("both", which="both", direction="in", top="on", right="on",
