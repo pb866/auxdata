@@ -178,8 +178,11 @@ given by `*args` and `**kwargs`.
     ± range around the experimental value
   - `2`: Unsymmetrical error – value in columns 4 and 5 of the input matrix
     indicate the lower and upper error of the experimental value
-  - `3`: As `2`, but with values in columns 4 and 5 of the input matrix being
-    the calculated values of exp. value ± error
+  - `3`: Shade error within a percentage in the range
+    `exp. value ± (exp. value × error)`
+  - `4`: Shade error within a factor in the range
+    `1/error × exp value … error × exp. value`
+  - `5`: Shade error range with lower and upper bounds in columns 4 and 5, respectively
 - `logscale`: set to `"x"`, `"y"` or `"xy"`, to set x axis, y axis or both axes to
   log scale, respectively
 - `cs`: Set colour scheme from function sel_ls, 3 schemes available:
@@ -219,6 +222,8 @@ given by `*args` and `**kwargs`.
   - `"upper center"` or `9`
   - `"center"` or `10`
 - `legcol` (integer): number of legend columns (default: `1`)
+- `SF`: scaling factor for y data, which can be included in the y legend, e.g. as
+  `\\\$10^{-\$(log10(SF))} y\\\$`
 """
 function lineplot(pdata, xlab::String="model time / hours",
                   ylab::String="concentration / mlc cm\$^{-3}\$ s\$^{-1}\$",
@@ -229,9 +234,11 @@ function lineplot(pdata, xlab::String="model time / hours",
                   figsiz::Tuple{Number,Number}=(6,4), fntsiz::Number=12,
                   frw::Number=1, tsc::Tuple{Number,Number}=(4.5,2.5),
                   ti_offset::Number=4, ax_offset::Number=2, leg_offset::Number=0,
-                  legloc="best", legcol::Int64=1)
+                  legloc="best", legcol::Int64=1, SF::Number=1)
   # Start plot
   fig, ax = subplots(figsize=figsiz)
+  # Scale y data
+  pdata[:,2] .*= SF
   # Add empty label column to input matrix, if missing
   if length(pdata[1,:]) == 2
     lab = String[]
@@ -256,6 +263,12 @@ function lineplot(pdata, xlab::String="model time / hours",
       ax[:fill_between](pdata[i,1], pdata[i,2].-pdata[i,4], pdata[i,2].+pdata[i,5],
         color=lstyle[1][i], alpha=0.2)
     elseif err == 3
+      ax[:fill_between](pdata[i,1], pdata[i,2].-(pdata[i,4].⋅pdata[i,2]),
+        pdata[i,2].+(pdata[i,4].⋅pdata[i,2]), color=lstyle[1][i], alpha=0.2)
+    elseif err == 4
+      ax[:fill_between](pdata[i,1], (1./pdata[i,4]).⋅pdata[i,2],
+        pdata[i,4].⋅pdata[i,2], color=lstyle[1][i], alpha=0.2)
+    elseif err == 5
       ax[:fill_between](pdata[i,1], pdata[i,4], pdata[i,5],
         color=lstyle[1][i], alpha=0.2)
     end
@@ -323,7 +336,8 @@ function lineplot(pdata, xlab::String="model time / hours",
   ax[:spines]["right"][:set_linewidth](frw)
   tight_layout()
 
-  # close(fig)
+  # Reset y data
+  pdata[:,2] ./= SF
 
   return fig
 end #function lineplot
