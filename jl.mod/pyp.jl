@@ -44,7 +44,7 @@ export rd_data,
 ###################
 
 """
-    rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
+    rd_data(ifile; \*\*kwargs)
 
 
 Read data from text file `ifile` in the following format:
@@ -55,37 +55,52 @@ Read data from text file `ifile` in the following format:
     # jlheaders: x1, y1, y2, ..., yn
     # (You may use whitespace, commas (,), semicolons (;), or pipes (|) as
     #  separators in the list above)
-    <data separated by whitespace or any charecter/string>
+    <data separated by whitespace or any character/string>
+
+If columns don't have the same length, it can be specified whether the first or last
+columns will be filled with `NaN`s.
 
 The function uses several keyword arguments (\*\*kwargs) for more freedom in the
 file format or the selection of data.
 
 ### \*\*kwargs
 
-- `ix`: Column index for column in `ifile` holding the x data (default index: `1`;
-  default column name in output DataFrame: `x`). If `ix` is set to `0`, no x column
+- `ix` (`Int64`; default: `1`): Column index for column in `ifile` holding the x data
+  (default column name in output DataFrame: `x`). If `ix` is set to `0`, no x column
   is assigned and only y columns are used in the DataFrame.
-- `iy`: Column index/indices of y data columns in `ifile`. If `iy` is set to `0`,
-  all columns starting at column 2 are assigned as y columns (default index: `0`;
-  default column name(s) in output DataFrame: `y1` ... `yn`).
+- `iy` (default: `0`): Column index/indices of y data columns in `ifile`. If `iy`
+  is set to `0`, all columns starting at column 2 are assigned as y columns
+  (default column name(s) in output DataFrame: `y1` ... `yn`).
   Columns can be specified using an integer for the selection of a single column,
   ranges (`<n(low)>:<n(high)>`), or arrays with special selections (`[n1, n2, ..., nn]`)
   where column order can be rearranged.
-- `headers`: If headers is set to `true` (default: `false`), you need to specify
+- `headers` (`Bool`; default: `false`): If headers is set to `true`, you need to specify
   column header names for all columns for the output DataFrame as described above
   using the keyword `jlheaders`. All columns will be read in and saved the same
   order as in `ifile`.
-- `SF`: You can optionally apply scaling factors to y data (default value: `1`
-  (no scaling)). If `SF` is an integer, the scaling factor will be applied to all
+- `SF` (default value: `1` (no scaling)): You can optionally apply scaling factors
+  to y data. If `SF` is an integer, the scaling factor will be applied to all
   y columns. You can apply scaling to each y column individually by providing an
-  array of scaling factors of length number of columns - 1 (for the x column). If
+  array of scaling factors of `length number of columns - number of x column`. If
   you only want to scale certain column(s), set the scaling factors for these columns
   and use `1` otherwise.
-- `sep`: You can specify any column separator with the keyword charactar `sep`
-  (default: whitespace). Separators can be any unicode character (even special characters
-  such as `≠` or `α`) or string series of unicode characters (including whitespace).
+- `sep` (default: `whitespace`): You can specify any column separator with the
+  keyword charactar `sep`. Separators can be any unicode character (even special
+  characters such as `≠` or `α`) or string series of unicode characters
+  (including whitespace).
+- `fill` (`Int64`; default: `"last"`): If the column length of the input file varies,
+  the `first` or `last` columns of the file are filled with `NaN`s according to
+  the keyword. If you have a file with shorter columns to the right and the left,
+  you either need to rearrange columns in the original data file or try to work
+  with a specifically defined separator `sep`.
+- `ncol` (`String`; default: `-1`): Defines the number of columns (x + y columns) in a file.
+  If set to a negative number, the number of columns is derived from the `jlheaders`
+  array or, if obsolete, from the first non-comment line of the file. You should
+  only have to set the number of columns, if you have columns of different length
+  with leading missing numbers.
 """
-function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
+function rd_data(ifile; ix::Int64=1, iy=0, headers::Bool=false, SF=1, sep::String="",
+  fill::String="last", ncol::Int64=-1)
   # Read input file
   ifile = test_file(ifile) # check existence of file
   lines = String[]; colnames = String[] # initialise arrays
@@ -110,12 +125,19 @@ function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
     deleteat!(lines,del)
   end
 
+  # Set number of columns
+  if ncol < 0 && length(colnames) > 0
+    ncol = length(colnames)
+  elseif ncol < 0
+    ncol = length(split(lines[1]))
+  end
   # Determine number of y columns for default case
   if iy == 0  && ix == 0
-    iy = 1:length(split(lines[1]))
+    iy = 1:ncol
   elseif iy == 0  && ix > 0
-    iy = 2:length(split(lines[1]))
+    iy = 2:ncol
   end
+
   # Initilise x and y data
   if ix > 0  x = Float64[]  end
   y = Matrix{Float64}(0, length(iy))
@@ -129,9 +151,26 @@ function rd_data(ifile; ix::Int64=1, iy=0, headers=false, SF=1, sep::String="")
       # Use separator, if specified
       raw = split(line,sep)
     end
+    # Check number of current columns against maximum number of columns
+    if length(raw) > ncol
+      println("WARNING! Number of columns read in greater than defined number of columns.")
+      println("The $fill $(length(raw)-ncol) columns are ignored.")
+      if lowercase(fill[1]) == "l"
+        raw = raw[1:ncol]
+      else
+        raw = raw[length(raw)-ncol+1:end]
+      end
+    end
     # Save current line to respective data arrays
     if ix > 0  push!(x,float(raw[ix]))  end
-    y = vcat(y,transpose(float.(raw[iy]).⋅SF))
+    ydat = transpose(float.(raw[1:end .!= ix]).*SF)
+    ix == 0? nx = 0: nx = 1
+    if length(ydat)<ncol && fill == "last"
+      for i=length(ydat)+1:ncol-nx  ydat = hcat(ydat,NaN)  end
+    elseif length(ydat)<ncol && fill == "first"
+      for i=length(ydat)+1:ncol-nx  ydat = hcat(NaN,ydat)  end
+    end
+    y = vcat(y,ydat)
   end
 
   # Generate output DataFrame
@@ -239,6 +278,8 @@ function lineplot(pdata, xlab::String="model time / hours",
   fig, ax = subplots(figsize=figsiz)
   # Scale y data
   pdata[:,2] .*= SF
+  if length(pdata[1,:]) ≥  4 && err ≠ 3 && err ≠ 4  pdata[:,4] .*= SF  end
+  if length(pdata[1,:]) == 5 && err ≠ 3 && err ≠ 4  pdata[:,5] .*= SF  end
   # Add empty label column to input matrix, if missing
   if length(pdata[1,:]) == 2
     lab = String[]
@@ -263,11 +304,11 @@ function lineplot(pdata, xlab::String="model time / hours",
       ax[:fill_between](pdata[i,1], pdata[i,2].-pdata[i,4], pdata[i,2].+pdata[i,5],
         color=lstyle[1][i], alpha=0.2)
     elseif err == 3
-      ax[:fill_between](pdata[i,1], pdata[i,2].-(pdata[i,4].⋅pdata[i,2]),
-        pdata[i,2].+(pdata[i,4].⋅pdata[i,2]), color=lstyle[1][i], alpha=0.2)
+      ax[:fill_between](pdata[i,1], pdata[i,2].-(pdata[i,4].*pdata[i,2]),
+        pdata[i,2].+(pdata[i,4].*pdata[i,2]), color=lstyle[1][i], alpha=0.2)
     elseif err == 4
-      ax[:fill_between](pdata[i,1], (1./pdata[i,4]).⋅pdata[i,2],
-        pdata[i,4].⋅pdata[i,2], color=lstyle[1][i], alpha=0.2)
+      ax[:fill_between](pdata[i,1], (1./pdata[i,4]).*pdata[i,2],
+        pdata[i,4].*pdata[i,2], color=lstyle[1][i], alpha=0.2)
     elseif err == 5
       ax[:fill_between](pdata[i,1], pdata[i,4], pdata[i,5],
         color=lstyle[1][i], alpha=0.2)
@@ -281,8 +322,33 @@ function lineplot(pdata, xlab::String="model time / hours",
     xlim(xmin,xmax)
     ax[:set_xscale]("log")
   elseif logscale == "y"
-    ymin = 10^floor(log10(minimum(minimum.(pdata[:,2]))))
-    ymax = 10^ceil(log10(maximum(maximum.(pdata[:,2]))))
+    if err == 1
+      ymin = 10^floor(log10(minimum(map(m->m[1],findmin.(
+             max.(0,pdata[:,2].-pdata[:,4]))))))
+      ymax = 10^ceil(log10(maximum(map(m->m[1],findmax.(
+             pdata[:,2].+pdata[:,4])))))
+    elseif err == 2
+      ymin = 10^floor(log10(minimum(map(m->m[1],findmin.(
+             max.(0,pdata[:,2].-pdata[:,4]))))))
+      ymax = 10^ceil(log10(maximum(map(m->m[1],findmax.(
+             pdata[:,2].+pdata[:,5])))))
+    elseif err == 3
+      ymin = 10^floor(log10(minimum(map(m->m[1],findmin.(
+             max.(0,pdata[:,2].-(pdata[:,4].*pdata[:,2])))))))
+      ymax = 10^ceil(log10(maximum(map(m->m[1],findmax.(
+             pdata[:,2].+(pdata[:,4].*pdata[:,2]))))))
+    elseif err == 4
+      ymin = 10^floor(log10(minimum(map(m->m[1],findmin.(
+             max.(0,(1./pdata[:,4]).*pdata[:,2]))))))
+      ymax = 10^ceil(log10(maximum(map(m->m[1],findmax.(
+             pdata[:,4].*pdata[:,2])))))
+    elseif err == 5
+      ymin = 10^floor(log10(minimum(map(m->m[1],findmin.(max.(0,pdata[:,4]))))))
+      ymax = 10^ceil(log10(maximum(map(m->m[1],findmax.(pdata[:,5])))))
+    else
+      ymin = 10^floor(log10(minimum(map(m->m[1],findmin.(max.(0,pdata[:,2]))))))
+      ymax = 10^ceil(log10(maximum(map(m->m[1],findmax.(pdata[:,2])))))
+    end
     ylim(ymin, ymax)
     ax[:set_yscale]("log")
   elseif logscale == "xy"
@@ -294,8 +360,19 @@ function lineplot(pdata, xlab::String="model time / hours",
     ylim(ymin, ymax)
     ax[:set_xscale]("log")
     ax[:set_yscale]("log")
+  #=
+  else
+    if xlims == nothing  xlims = (xlim()[1], xlim()[2])
+    elseif xlims[1] == nothing  xlims = (xlim()[1], xlims[2])
+    elseif xlims[2] == nothing  xlims = (xlims[1], xlim()[2])
+    end
+    if ylims == nothing  ylims = (ylim()[1], ylim()[2])
+    elseif ylims[1] == nothing  ylims = (ylim()[1], ylims[2])
+    elseif ylims[2] == nothing  ylims = (ylims[1], ylim()[2])
+    end
+    =#
   end
-  xlim(xlims); ylim(ylims);
+  ax[:set_xlim](xlims); ax[:set_ylim](ylims);
 
   # Set plot title
   ax[:set_title](ti, fontsize=fntsiz+ti_offset)
@@ -338,6 +415,8 @@ function lineplot(pdata, xlab::String="model time / hours",
 
   # Reset y data
   pdata[:,2] ./= SF
+  if length(pdata[1,:]) ≥  4 && err ≠ 3 && err ≠ 4  pdata[:,4] ./= SF  end
+  if length(pdata[1,:]) == 5 && err ≠ 3 && err ≠ 4  pdata[:,5] ./= SF  end
 
   return fig
 end #function lineplot
