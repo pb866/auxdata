@@ -12,7 +12,7 @@ catch
   Pkg.add("DataFrames")
   using DataFrames
 end
-try Dierckx
+try using Dierckx
 catch
   Pkg.add("Dierckx")
   using Dierckx
