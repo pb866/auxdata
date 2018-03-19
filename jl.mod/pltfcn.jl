@@ -129,28 +129,4 @@ function beautify_chem(reactions)
   return chem
 end #function beautify_chem
 
-
-"""
-    compile_pdf(iofolder)
-
-Compile single png plots in one pdf file
-and warn about possible missing software on failure.
-"""
-function compile_pdf(iofolder)
-
-  try
-    # compile pngs in a single pdf and delete all pngs
-    run(`convert -quality 100 $iofolder/'*'.png $iofolder/plots.pdf`)
-    cd(iofolder)
-    pfiles = filter(r"./*\.png",readdir())
-    for i = 1:length(pfiles)  rm(pfiles[i],force=true)  end
-    cd("..")
-  catch
-    # if compilation fails issue warning about possible missing software
-    println("\033[95mWARNING! UNIX tool 'convert' missing or unable to process plots.")
-    println("No concatenation of plots in single pdf in results folder.")
-    println("\033[96mMac users install imagemagick, e.g. using homebrew:")
-    println("brew install imagemagick\033[0m")
-  end
-end #function compile_pdf
 end #module fitfcn

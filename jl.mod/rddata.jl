@@ -67,8 +67,8 @@ end # function read_head
 """
     read_data(lines, df)
 
-From the lines (lines) in the TUV file retrieve χ-dependent _j_ values
-and append dataframe (df) initialised by function _read_head_.
+From the `lines` in the TUV file retrieve χ-dependent _j_ values
+and append dataframe (`df`) initialised by function _read_head_.
 """
 function read_data(lines,jvals)
 
@@ -94,10 +94,10 @@ end #function read_data
 """
     read_between(lines, lstart, lend[[, Sep], col])
 
-Return the lines of strings from all lines of a file (lines) in-between the lines
-containing the key phrases 'lstart' and 'lend'.
+Return the lines of strings from all `lines` of a file in-between the lines
+containing the key phrases `lstart` and `lend`.
 
-If an optional separator (Sep) and a column number (col) is defined, lines will be
+If an optional separator (`Sep`) and a column number (`col`) is defined, lines will be
 split by Sep and only column col is returned.
 """
 function read_between(lines, lstart::String, lend::String, Sep::String="", col::Int64=0)
