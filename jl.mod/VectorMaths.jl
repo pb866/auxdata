@@ -106,13 +106,15 @@ end #function DFvector_mean
 
 
 """
-    multivector_mean(vectors::Vector{DataFrames.DataFrame}; datarange::String="all")
+    multivector_mean(vectors::Vector{DataFrames.DataFrame};
+                     datarange::String="all", smooth_mean::String="offset")
 
 From a vector of DataFrames (`vectors`) with x values in the first column and
 y values in the second column, return a single DataFrame with unified x data in
 the first column `x`, the ydata in the following columns `y1` to `yn`, the mean
 in column `mean` and the sum in column `sum`. The x data in each DataFrame must
-be strictly monotonic.
+be strictly monotonic. Moreover, there must be a range, where the x data of all
+vectors overlap.
 
 There are two options for the keyword argument `datarange`: `common` and `all`.
 If `common` is chosen, data is only returned for the overlapping range of all
@@ -121,16 +123,27 @@ cubic splines are used to interpolate missing data.
 
 If `all` is chosen, all vectors are filled with `NaN`s, if their range is shorter
 than the maximum range of all vectors. `NaN`s are ignored for the calculation of
-the `sum` and the `mean`. Furthermore, for vectors of different lengths, the mean
-is multiplied after each premature end of a vector by a scaling factor to assure
-a contineous smooth line even if an outlier has ended:
+the `sum` and the `mean`.
 
-    SF = Ø(y values of all vectors)/Ø(y values of ending vectors)
+Furthermore, for vectors of different lengths, the mean is either multiplied by
+a scaling factor or an offset is added depending on the choice in the second
+keyword argment `smooth_mean`: `"offset"` or `"scale"`.
+Scaling factors or offsets are applied before every delayed start of a vector and
+after each premature end of a vector, respectively, to assure a contineous smooth
+mean even if an outlier has ended. Offsets and means are calcualted as
 
-This means, that the edges of each shorter vector will influence the mean outside
-the range of this vector.
+    offset = Ø(y values of all vectors)-Ø(y values of remaining vectors)
+    SF = Ø(y values of all vectors)/Ø(y values of remaining vectors)
+
+This means, that the ends of each shorter vector will influence the mean outside
+the range of this vector. Scaling factors should not be used, if the y data spans
+a large range (over several orders of magnitudes) as otherwise a small offset at
+the lower end of the data could lead to a large scaled offset at the upper end of
+the y data. Scaling factors should be used, if you want to assure that the sign
+in your y data does not change and the y data is in a reasonably small range.
 """
-function multivector_mean(vectors::Vector{DataFrames.DataFrame}; datarange::String="all")
+function multivector_mean(vectors::Vector{DataFrames.DataFrame};
+                          datarange::String="all", smooth_mean::String="offset")
 
   ### Check input data
   test_monotonicity(vectors)
@@ -179,12 +192,12 @@ function multivector_mean(vectors::Vector{DataFrames.DataFrame}; datarange::Stri
     lower_ydata = get_ydata(lower_xdata,vectors,mins,maxs,spl)
     upper_ydata = get_ydata(upper_xdata,vectors,mins,maxs,spl)
 
-    SF = get_ScalingFactor(lower_xdata, common_xdata, upper_xdata,
+    SF = get_ScalingFactor(smooth_mean, lower_xdata, common_xdata, upper_xdata,
                            lower_ydata, common_ydata, upper_ydata, mi, Mi)
 
     # Get mean and sum
-    lower_mean, lower_sum = calc_MeanSum(lower_ydata,SF[1])
-    upper_mean, upper_sum = calc_MeanSum(upper_ydata,SF[2])
+    lower_mean, lower_sum = calc_MeanSum(lower_ydata,SF[1],smooth_mean)
+    upper_mean, upper_sum = calc_MeanSum(upper_ydata,SF[2],smooth_mean)
 
     # Compile output DataFrame
     dfr = DataFrame(x = vcat(lower_xdata, common_xdata, upper_xdata))
@@ -292,15 +305,16 @@ end #function get_ydata
 
 
 """
-get_ScalingFactor(lower_xdata, common_xdata, upper_xdata,
+get_ScalingFactor(smooth_mean, lower_xdata, common_xdata, upper_xdata,
                   lower_ydata, common_ydata, upper_ydata, mi, Mi)
 
 From the unified x and y data below, inside, and above the common range and
 the indices of ending vectors outside the common range in the unified x data
-(`mi` and `Mi`), calculate and return scaling factors to allow a smooth contineous
-mean at the premature ends of vectors.
+(`mi` and `Mi`), calculate and return either offsets or scaling factors (as
+defined in `smooth_mean` with the keywords `"offset"` or `"scale"`) to allow
+a smooth contineous mean at the delayed start or premature ends of vectors.
 """
-function get_ScalingFactor(lower_xdata, common_xdata, upper_xdata,
+function get_ScalingFactor(smooth_mean, lower_xdata, common_xdata, upper_xdata,
                            lower_ydata, common_ydata, upper_ydata, mi, Mi)
 
   ### Get scaling factors for data below the common x range
@@ -308,47 +322,86 @@ function get_ScalingFactor(lower_xdata, common_xdata, upper_xdata,
   if isempty(mi) && length(lower_ydata) > 0
     # Calculate scaling factors, if no premature ending vectors are found
     # outside the common range
-    flow[1:end] = mean(common_ydata[1,:])/
-                  mean(common_ydata[1,:][!isnan.(lower_ydata[end,:])])
+    if smooth_mean == "offset"
+      flow[1:end] = mean(common_ydata[1,:]) -
+                    mean(common_ydata[1,:][!isnan.(lower_ydata[end,:])])
+    else
+      flow[1:end] = mean(common_ydata[1,:])/
+                    mean(common_ydata[1,:][!isnan.(lower_ydata[end,:])])
+    end
   elseif length(lower_ydata) > 0
     # Calculate scaling factors, if premature ending vectors outside the
     # common range are found
     y = lower_ydata[mi[1],:]
     # Scaling factors from common range to first ending vectors
-    flow[1:mi[1]-1] = mean(y[!isnan.(y)])/mean(y[!isnan.(lower_ydata[mi[1]-1,:])])
+    if smooth_mean == "offset"
+      flow[1:mi[1]-1] = mean(y[!isnan.(y)])-mean(y[!isnan.(lower_ydata[mi[1]-1,:])])
+    else
+      flow[1:mi[1]-1] = mean(y[!isnan.(y)])/mean(y[!isnan.(lower_ydata[mi[1]-1,:])])
+    end
     # Scaling vectors for further ending vectors
     for i = 2:length(mi)
       y = lower_ydata[mi[i],:]
-      flow[mi[i-1]:mi[i]-1] = mean(y[!isnan.(y)])/
-                              mean(y[!isnan.(lower_ydata[mi[i]-1,:])])
+      if smooth_mean == "offset"
+        flow[mi[i-1]:mi[i]-1] = mean(y[!isnan.(y)]) -
+                                mean(y[!isnan.(lower_ydata[mi[i]-1,:])])
+      else
+        flow[mi[i-1]:mi[i]-1] = mean(y[!isnan.(y)])/
+                                mean(y[!isnan.(lower_ydata[mi[i]-1,:])])
+      end
     end
     # Scaling factors for last prematurely ending vector to end of data range
-    flow[mi[end]:end] = mean(common_ydata[1,:])/
-                        mean(common_ydata[1,:][!isnan.(lower_ydata[end,:])])
+    if smooth_mean == "offset"
+      flow[mi[end]:end] = mean(common_ydata[1,:]) -
+                          mean(common_ydata[1,:][!isnan.(lower_ydata[end,:])])
+    else
+      flow[mi[end]:end] = mean(common_ydata[1,:])/
+                          mean(common_ydata[1,:][!isnan.(lower_ydata[end,:])])
+    end
   end
 
   ### Get scaling factors for data above the common x range
   if isempty(Mi) && length(upper_ydata) > 0
     # Calculate scaling factors, if no premature ending vectors are found
     # outside the common range
-    fhigh[1:end] = mean(common_ydata[end,:])/
-                   mean(common_ydata[end,:][!isnan.(upper_ydata[1,:])])
+    if smooth_mean == "offset"
+      fhigh[1:end] = mean(common_ydata[end,:]) -
+                     mean(common_ydata[end,:][!isnan.(upper_ydata[1,:])])
+    else
+      fhigh[1:end] = mean(common_ydata[end,:])/
+                     mean(common_ydata[end,:][!isnan.(upper_ydata[1,:])])
+    end
   elseif length(upper_ydata) > 0
     # Calculate scaling factors, if premature ending vectors outside the
     # common range are found
     # Scaling factors from common range to first ending vectors
-    fhigh[1:Mi[1]-1] = mean(common_ydata[end,:])/
-                       mean(common_ydata[end,:][!isnan.(upper_ydata[1,:])])
+    if smooth_mean == "offset"
+      fhigh[1:Mi[1]-1] = mean(common_ydata[end,:]) -
+                         mean(common_ydata[end,:][!isnan.(upper_ydata[1,:])])
+    else
+      fhigh[1:Mi[1]-1] = mean(common_ydata[end,:])/
+                         mean(common_ydata[end,:][!isnan.(upper_ydata[1,:])])
+    end
     # Scaling vectors for further ending vectors
     for i = 2:length(Mi)
       y = upper_ydata[Mi[i],:]
-      fhigh[Mi[i-1]:Mi[i]-1] = mean(y[!isnan.(y)])/
-                               mean(y[!isnan.(upper_ydata[Mi[i]+1,:])])
+      if smooth_mean == "offset"
+        fhigh[Mi[i-1]:Mi[i]-1] = mean(y[!isnan.(y)]) -
+                                 mean(y[!isnan.(upper_ydata[Mi[i]+1,:])])
+      else
+        fhigh[Mi[i-1]:Mi[i]-1] = mean(y[!isnan.(y)])/
+                                 mean(y[!isnan.(upper_ydata[Mi[i]+1,:])])
+      end
     end
     # Scaling vectors for further ending vectors
     y = upper_ydata[Mi[end],:]
-    fhigh[Mi[end]:end] = mean(y[!isnan.(y)])/
-    mean(y[!isnan.(upper_ydata[Mi[end]+1,:])])
+    if smooth_mean == "offset"
+      fhigh[Mi[end]:end] = mean(y[!isnan.(y)]) -
+                           mean(y[!isnan.(upper_ydata[Mi[end]+1,:])])
+    else
+      fhigh[Mi[end]:end] = mean(y[!isnan.(y)])/
+                           mean(y[!isnan.(upper_ydata[Mi[end]+1,:])])
+    end
   end
 
   # Return scaling factors for mean below and above the common range
@@ -388,16 +441,21 @@ end
 
 
 """
-    calc_MeanSum(Ydata,SF)
+    calc_MeanSum(Ydata,SF,smooth_mean)
 
-From the unified `Ydata` of each DataFrame and the corresponding scaling factors
-`SF` for the mean outside the common range, calculate the `mean` and `sum` of
-all `Ydata`.
+From the unified `Ydata` of each DataFrame and the corresponding offsets or
+scaling factors `SF` for the mean outside the common range (as set by
+`smooth_mean` with the keywords `"offset"` or `"scale"`), calculate the `mean`
+and `sum` of all `Ydata`.
 """
-function calc_MeanSum(Ydata,SF)
+function calc_MeanSum(Ydata,SF,smooth_mean)
   Ymean = Float64[]; Ysum = Float64[]
   for i = 1:length(SF)
-    push!(Ymean,mean(Ydata[i,:][!isnan.(Ydata[i,:])])⋅SF[i])
+    if smooth_mean == "offset"
+      push!(Ymean,mean(Ydata[i,:][!isnan.(Ydata[i,:])])+SF[i])
+    else
+      push!(Ymean,mean(Ydata[i,:][!isnan.(Ydata[i,:])])⋅SF[i])
+    end
     push!(Ysum,sum(Ydata[i,:][!isnan.(Ydata[i,:])]))
   end
 
