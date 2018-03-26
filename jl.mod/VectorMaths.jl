@@ -183,8 +183,8 @@ function multivector_mean(vectors::Vector{DataFrames.DataFrame};
   else
     # Find all x and y data outside common range
     # Assign NaN's to missing data
-    lower_xdata = get_xdata(vectors, 0, lowest_common, bounds="exclude")
-    upper_xdata = get_xdata(vectors, largest_common, maximum(maxs), bounds="exclude")
+    lower_xdata = get_xdata(vectors, -Inf, lowest_common, bounds="exclude")
+    upper_xdata = get_xdata(vectors, largest_common, Inf, bounds="exclude")
 
     # Find indices in arrays, where some data columns end in the lower or upper data
     mi, Mi = find_boundaries(mins,maxs,lower_xdata,upper_xdata)
