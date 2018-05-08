@@ -403,14 +403,14 @@ function plot_prodloss(spc, scenario, modtime, source, sink, unit,
     top="on", right="on", left="on", bottom="on")
   ax2[:tick_params]("both", which="both", direction="in",
     top="on", right="on", left="on", bottom="on")
+  ax1[:minorticks_on](); ax2[:minorticks_on]()
   # x axis
   if t_frmt == "TIME"
     ax2[:axes][:get_xaxis]()[:set_ticks](collect(0:12:modtime[end]+1.e-5))
     xlim(xmin=modtime[1], xmax=modtime[end]+1.e-5)
-    minorticks_on()
     mx = matplotlib[:ticker][:MultipleLocator](3) # Define interval of minor ticks
     ax2[:xaxis][:set_minor_locator](mx)
-    ax[:set_xlabel]("model time / hours")
+    ax2[:set_xlabel]("model time / hours")
   elseif t_frmt == "JTIME"
     xlim(xmin=modtime[1], xmax=modtime[end])
     majorformatter = matplotlib[:dates][:DateFormatter]("%d. %b, %H:%M")
@@ -422,7 +422,7 @@ function plot_prodloss(spc, scenario, modtime, source, sink, unit,
     ax2[:xaxis][:set_major_locator](majorlocator)
     ax2[:xaxis][:set_minor_locator](minorlocator)
     fig[:autofmt_xdate](bottom=0.2,rotation=-30,ha="left")
-    ax[:set_xlabel]("time (UTC)")
+    ax2[:set_xlabel]("time (UTC)")
   end
   # y axis
   pextr=maximum(sum(source[1][:,2:end],1))
