@@ -25,9 +25,10 @@ Content
 Version history
 ===============
 
-Version 0.6
+Version 0.8
 -----------
-- Initial auxiliary files with obsolete python scripts and Julia scipts for the derivation of MCM photolysis parameterisations and plotting
+- Removed module `make_plots` for plotting of DSMACCanalysis output (see https://github.com/pb866/DSMACCanalysis.git)
+- New module `ChemPhysConst` with important chemical and physical constants in natural sciences
 
 Version 0.7 – 0.7.2
 -------------------
@@ -35,7 +36,6 @@ Version 0.7 – 0.7.2
 - Mean/sum of multiple vectors in `VectorMaths`; extrapolation of mean to minimum/maximum of overall data by scaling or offset
 - Bug fixes
 
-Version 0.8
+Version 0.6
 -----------
-- Removed module `make_plots` for plotting of DSMACCanalysis output (see https://github.com/pb866/DSMACCanalysis.git)
-- New module `ChemPhysConst` with important chemical and physical constants in natural sciences
+- Initial auxiliary files with obsolete python scripts and Julia scipts for the derivation of MCM photolysis parameterisations and plotting
