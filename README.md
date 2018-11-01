@@ -1,6 +1,9 @@
 auxdata
 =======
 
+> Notice: 
+> `auxdata` is now deprecated and will slowly be replaced by individual repositories for each Julia package.
+
 Auxiliary data and scripts used mainly for Julia scripting. Some auxiliary python
 scripts to derive parameterisations for MCM photolysis processes are provided,
 but no longer maintained.
