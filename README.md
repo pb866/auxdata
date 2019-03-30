@@ -2,7 +2,8 @@ auxdata
 =======
 
 > Notice: 
-> `auxdata` is now deprecated and will slowly be replaced by individual repositories for each Julia package.
+> `auxdata` is now deprecated. Julia code is restructured and updated in the packages [VectorMaths](https://github.com/pb866/VectorMaths.git), [pyp](https://github.com/pb866/pyp.git), [filehandling](https://github.com/pb866/pyfilehandlingp.git), [ChemPhysConst](https://github.com/pb866/ChemPhysConst.git), and [MCMphotolysis](https://github.com/pb866/MCMphotolysis.git). 
+> `numerics.jl` is currently not supported. Python code is not supported anymore.
 
 Auxiliary data and scripts used mainly for Julia scripting. Some auxiliary python
 scripts to derive parameterisations for MCM photolysis processes are provided,
